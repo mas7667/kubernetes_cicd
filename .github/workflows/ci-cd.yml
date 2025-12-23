@@ -27,32 +27,76 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
       - name: Update GitOps repository
-        shell: bash
+        # ****** IF YOU USE LINUX OR MAC UNCOMMENT THIS SECTION
+        # ------------------------------------
+        # shell: bash
+        # env:
+        #   GIT_TOKEN: ${{ secrets.GITOPS_PAT }}
+        # run: |
+        #   # Configure git credential store
+        #   git config --global credential.helper store
+        #   echo "https://${GIT_TOKEN}:x-oauth-basic@github.com" > ~/.git-credentials
+          
+        #   # Remove any existing gitops directory
+        #   rm -rf gitops
+          
+        #   # Clone repository using HTTPS URL without token
+        #   git clone https://github.com/mas7667/grade-api-gitops.git gitops
+        #   cd gitops
+          
+        #   if [[ "$OSTYPE" == "darwin"* ]]; then
+        #     sed -i '' "s|image: ghcr.io/${{ github.repository }}:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" deployment.yaml
+        #   else
+        #     sed -i "s|image: ghcr.io/${{ github.repository }}:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" deployment.yaml
+        #   fi
+          
+        #   # Commit changes
+        #   git config --global user.name "GitHub Actions"
+        #   git config --global user.email "actions@github.com"
+        #   git add deployment.yaml
+        #   git commit -m "Update image to ${{ github.sha }}"
+          
+        #   # Push
+        #   git push -f https://${GIT_TOKEN}@github.com/mas7667/grade-api-gitops.git main
+        # ----------------------------------------
+
+        # ***** THIS IS FOR WINDOWNS ******
+        # ----------------------------------------
+      
+        shell: pwsh  # On utilise PowerShell Core
         env:
           GIT_TOKEN: ${{ secrets.GITOPS_PAT }}
         run: |
-          # Configure git credential store
-          git config --global credential.helper store
-          echo "https://${GIT_TOKEN}:x-oauth-basic@github.com" > ~/.git-credentials
+          # 1. Nettoyage du dossier s'il existe déjà (Equivalent de rm -rf)
+          if (Test-Path gitops) { Remove-Item -Recurse -Force gitops }
           
-          # Remove any existing gitops directory
-          rm -rf gitops
-          
-          # Clone repository using HTTPS URL without token
+          # 2. Clone du repo GitOps
           git clone https://github.com/mas7667/grade-api-gitops.git gitops
-          cd gitops
           
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s|image: ghcr.io/${{ github.repository }}:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" deployment.yaml
-          else
-            sed -i "s|image: ghcr.io/${{ github.repository }}:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" deployment.yaml
-          fi
+          # Entrer dans le dossier
+          Set-Location gitops
           
-          # Commit changes
+          # 3. Remplacement du Tag (Equivalent de sed, mais façon PowerShell)
+          # On remplace toute ligne commençant par "image: ghcr.io/..."
+          $File = "deployment.yaml"
+          $Regex = "image: ghcr.io/.*?/.*?:.*"
+          $NewImage = "image: ghcr.io/mas7667/kubernetes_cicd:${{ github.sha }}"
+          
+          (Get-Content $File) -replace $Regex, $NewImage | Set-Content $File
+          
+          # Vérification visuelle dans les logs
+          Write-Host "Nouveau contenu du fichier :"
+          Get-Content $File | Select-String "image:"
+          
+          # 4. Configuration Git
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+          
+          # 5. Commit
           git add deployment.yaml
           git commit -m "Update image to ${{ github.sha }}"
+
           
-          # Push
-          git push -f https://${GIT_TOKEN}@github.com/mas7667/grade-api-gitops.git main
+          # 6. Push (Note la syntaxe pour la variable d'environnement : $env:VAR)
+          git push -f https://$($env:GIT_TOKEN)@github.com/mas7667/grade-api-gitops.git main
+          
