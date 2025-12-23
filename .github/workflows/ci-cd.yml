@@ -63,7 +63,7 @@ jobs:
         # ***** THIS IS FOR WINDOWNS ******
         # ----------------------------------------
       
-        shell: pwsh  # On utilise PowerShell Core
+        shell: powershell  # On utilise PowerShell Core
         env:
           GIT_TOKEN: ${{ secrets.GITOPS_PAT }}
         run: |
